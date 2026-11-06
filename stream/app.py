@@ -164,23 +164,6 @@ def consultar_sidra(tabela, variaveis, periodos, classificacoes="", nivel="n3/al
 
     return tabela_df.dropna(subset=["Valor"])
 
-    """Consulta o IBGE e devolve uma tabela com valores numéricos."""
-    url = (f"https://apisidra.ibge.gov.br/values/t/{tabela}/{nivel}/"
-           f"v/{variaveis}/p/{periodos}/")
-    if classificacoes:
-        url += f"{classificacoes}/"
-    url += "?formato=json"
-    resposta = requests.get(url, timeout=35, headers={"User-Agent": "DashboardEscolar/1.0"})
-    resposta.raise_for_status()
-    linhas = resposta.json()
-    if not isinstance(linhas, list) or len(linhas) < 2:
-        raise ValueError(f"Sem resultados na tabela {tabela} do IBGE.")
-    tabela_df = pd.DataFrame(linhas[1:]).rename(columns=linhas[0])
-    tabela_df["Valor"] = pd.to_numeric(
-        tabela_df["Valor"].astype(str).str.replace(",", ".", regex=False),
-        errors="coerce",
-    )
-    return tabela_df.dropna(subset=["Valor"])
 
 
 def encontrar_coluna(df, texto):
