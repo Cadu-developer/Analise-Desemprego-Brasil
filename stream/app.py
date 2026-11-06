@@ -113,6 +113,7 @@ CODIGOS_UF = {str(codigo): sigla for sigla, codigo in UF_CODIGOS.items()}
 
 
 
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def consultar_sidra(tabela, variaveis, periodos, classificacoes="", nivel="n3/all"):
     # Converte o nível territorial
