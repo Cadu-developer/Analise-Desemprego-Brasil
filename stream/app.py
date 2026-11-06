@@ -112,8 +112,58 @@ UF_CODIGOS = dict(zip(dados["UF"].astype(str), dados["Código"].astype(int)))
 CODIGOS_UF = {str(codigo): sigla for sigla, codigo in UF_CODIGOS.items()}
 
 
+
 @st.cache_data(ttl=86400, show_spinner=False)
 def consultar_sidra(tabela, variaveis, periodos, classificacoes="", nivel="n3/all"):
+    # Converte o nível territorial
+    tipo, codigo = nivel.split("/")
+    localidade = "BR" if tipo == "n1" else f"N{tipo[1:]}[{codigo}]"
+
+    # Converte as classificações
+    classes = []
+    if classificacoes:
+        partes = classificacoes.strip("/").split("/")
+        for i in range(0, len(partes), 2):
+            numero = partes[i].replace("c", "", 1)
+            classes.append(f"{numero}[{partes[i + 1]}]")
+
+    # Nova API do IBGE
+    url = (
+        f"https://servicodados.ibge.gov.br/api/v3/agregados/{tabela}"
+        f"/periodos/{periodos.replace(',', '|')}"
+        f"/variaveis/{variaveis.replace(',', '|')}"
+    )
+
+    params = {
+        "localidades": localidade,
+        "view": "flat"
+    }
+
+    if classes:
+        params["classificacao"] = "|".join(classes)
+
+    resposta = requests.get(url, params=params, timeout=35)
+
+    if not resposta.ok:
+        raise ValueError(
+            f"IBGE retornou {resposta.status_code}: "
+            f"{resposta.text[:300]}"
+        )
+
+    linhas = resposta.json()
+
+    if not isinstance(linhas, list) or len(linhas) < 2:
+        raise ValueError("O IBGE não retornou dados suficientes.")
+
+    tabela_df = pd.DataFrame(linhas[1:]).rename(columns=linhas[0])
+
+    tabela_df["Valor"] = pd.to_numeric(
+        tabela_df["Valor"].astype(str).str.replace(",", ".", regex=False),
+        errors="coerce"
+    )
+
+    return tabela_df.dropna(subset=["Valor"])
+
     """Consulta o IBGE e devolve uma tabela com valores numéricos."""
     url = (f"https://apisidra.ibge.gov.br/values/t/{tabela}/{nivel}/"
            f"v/{variaveis}/p/{periodos}/")
